@@ -9,7 +9,7 @@
 #include <pistache/endpoint.h>
 #include <pistache/common.h>
 #include <ctime>    
-#include <mqtt/client.h>
+//#include <mqtt/client.h>
 
 #include <signal.h>
 
@@ -380,13 +380,15 @@ private:
     }
 
      void AutomaticFeature(){
-            int one_minute = 0;
+            window.setAutomaticFeature(true);
+            AutomaticLightController();
+            AutomaticTempController();
+            int one_minute = 60;
             while(window.isAutomaticEnabled()){
-                AutomaticLightController();
                 sleep(one_minute);
-                AutomaticTempController();
+                AutomaticLightController();
                 sleep(one_minute + 60 * 14);
-                one_minute = 60;
+                AutomaticTempController();
             }
      }
 };
@@ -396,33 +398,33 @@ void mqttExample() {
     const std::string clientId = "window";
 
     // Create a client
-    mqtt::client client(address, clientId);
+    // mqtt::client client(address, clientId);
 
-    mqtt::connect_options options;
-    options.set_keep_alive_interval(20);
-    options.set_clean_session(true);
+    // mqtt::connect_options options;
+    // options.set_keep_alive_interval(20);
+    // options.set_clean_session(true);
 
-    try {
-        // Connect to the client
-        client.connect(options);
+    // try {
+    //     // Connect to the client
+    //     client.connect(options);
 
-        // Create a message
-        const std::string TOPIC = "window";
-        const std::string PAYLOAD = "Hello World!";
-        auto msg = mqtt::make_message(TOPIC, PAYLOAD);
+    //     // Create a message
+    //     const std::string TOPIC = "window";
+    //     const std::string PAYLOAD = "Hello World!";
+    //     auto msg = mqtt::make_message(TOPIC, PAYLOAD);
 
-        // Publish it to the server
-        client.publish(msg);
+    //     // Publish it to the server
+    //     client.publish(msg);
 
-        // Disconnect
-        client.disconnect();
-    }
-    catch (const mqtt::exception& exc) {
-        std::cerr << exc.what() << " [" << exc.get_reason_code() << "]" << std::endl;
-    }
+    //     // Disconnect
+    //     client.disconnect();
+    // }
+    // catch (const mqtt::exception& exc) {
+    //     std::cerr << exc.what() << " [" << exc.get_reason_code() << "]" << std::endl;
+    // }
 }
 
-void httpExample(){
+void httpExample(int argc, char *argv[]){
 
     // This code is needed for gracefull shutdown of the server when no longer needed.
     sigset_t signals;
@@ -432,7 +434,7 @@ void httpExample(){
             || sigaddset(&signals, SIGHUP) != 0
             || pthread_sigmask(SIG_BLOCK, &signals, nullptr) != 0) {
         perror("install signal handler failed");
-        return 1;
+        return;
     }
 
     // Set a port on which your server to communicate
@@ -483,9 +485,9 @@ int main(int argc, char *argv[]) {
 
 	// Parent executes mqtt
 	if (program > 0){
-    	mqttExample();
+    	//mqttExample();
 	}
 	else if (program == 0){
-		httpExample();
+		httpExample(argc, argv);
 	}
 }

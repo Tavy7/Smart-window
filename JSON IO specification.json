@@ -1,0 +1,114 @@
+{
+    "device-name": "SmartWindow App",
+    "device-type": "SmartWindow",
+    "buffers-count": 3,
+    "input-buffers1":{
+        "1":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": " '",
+            "buffer-tokens":[
+            {
+                "name":"SmartWindow options",
+                "description":"",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [windowsStatus, blindsStatus]
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "The parameter value if you choose windowsStatus(how % is open) or blindsStatus(how % is open)",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-100]", // Correct inputs will be a number between 0-100
+                "optional": false
+            }
+            ]
+        }
+    },
+    "input-buffers2":{  
+        "2":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": " '",
+            "buffer-tokens":[
+            {
+                "name":"SmartWindow options",
+                "description":"",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be 'user']
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option first parameter value",
+                "description": "First value for user preferences - temperature you would like in % ",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-100]", // Correct inputs will be a number between 0-100
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option second parameter value",
+                "description": "Second value for user preferences - light you would like in % ",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-100]", // Correct inputs will be a number between 0-100
+                "optional": false
+            }      
+         
+            ]
+        }
+    },
+    "input-buffers3":{  
+        "3":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": " '",
+            "buffer-tokens":[
+            {
+                "name":"SmartWindow options",
+                "description":"",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be 'auto']
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "if user has no preferences, then the auto will run",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-1]", // Correct inputs is 0 (off) or 1(off)
+                "optional": false
+            }  
+            ]
+        }
+    },
+    "output-buffers":{
+        "1":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": "curl -XGET 'http://localhost:9080/'",
+            "buffer-tokens":[
+            {
+                "name":"SmartWindow options",
+                "description":"",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [ready, auth, settings]
+                "optional": false
+            },
+            {
+                "name":"SmartWindow options parameter",
+                "description": "Parameters for the setting chosen",
+                "token-type":"string",
+                "byte-size":10,
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be: [windowsStatus, blindsStatus, user]
+                "optional": true
+            }
+            ]
+        }
+    }
+}

@@ -44,6 +44,7 @@ public:
     {
         int roomTemperature;
         int lightLevel;
+        int blindsOpenPercentage;
     };
 
     explicit WindowEndpoint(Address addr)
@@ -98,18 +99,21 @@ private:
 
         bool automaticLightEnabled;
         bool automaticTempEnabled;
-        bool morningModeEnabled;
+        bool alarmEnabled;
+
+        int alarmStartTime;
 
     public:
         explicit Window()
         {
             // Set default values
-            setUserPreferences(20, 20);
+            setUserPreferences(20, 20, 50);
             set(windowStatVal, 0);
             set(blindStatVal, 10);
             //automaticFeatureEnabled = true;
             automaticLightEnabled = false;
             automaticTempEnabled = false;
+            alarmEnabled = false;
         }
 
         // bool isAutomaticEnabled()
@@ -127,9 +131,14 @@ private:
             return automaticTempEnabled;
         }
 
-        bool isMorningMode()
+        bool isAlarmEnabled()
         {
-            return morningModeEnabled;
+            return alarmEnabled;
+        }
+
+        int getAlarmStartTime()
+        {
+            return alarmStartTime;
         }
 
         // void setAutomaticFeature(bool value)
@@ -147,6 +156,23 @@ private:
             automaticTempEnabled = value;
         }
 
+        void setAlarmStatus(bool value)
+        {
+            alarmEnabled = value;
+        }
+
+        void setAlarmStartTime(int value)
+        {
+            alarmStartTime = value;
+        }
+
+        void setUserPreferences(int temp, int lightLevel, int blindsPerc)
+        {
+            userPreferences.roomTemperature = temp;
+            userPreferences.lightLevel = lightLevel;
+            userPreferences.blindsOpenPercentage = blindsPerc;
+        }
+
         // void setMorningMode(bool value)
         // {
         //     if (value == 1) { // daca este activat morningMode
@@ -162,12 +188,6 @@ private:
         //     //activationtime = 1;
         //     //alarmtime = 4
         // }
-
-        void setUserPreferences(int temp, int lightLevel)
-        {
-            userPreferences.roomTemperature = temp;
-            userPreferences.lightLevel = lightLevel;
-        }
 
         UserPreferences getUserPreferences()
         {
@@ -235,17 +255,17 @@ private:
         Routes::Get(router, "/ready", Routes::bind(&WindowEndpoint::handleReady, this));
         Routes::Get(router, "/auth", Routes::bind(&WindowEndpoint::doAuth, this));
 
-        Routes::Post(router, "/settings/user/:val1/:val2", Routes::bind(&WindowEndpoint::setUserSettings, this));
+        Routes::Post(router, "/settings/user/:val1/:val2/:val3", Routes::bind(&WindowEndpoint::setUserSettings, this));
         Routes::Get(router, "/settings/user", Routes::bind(&WindowEndpoint::getUserSettings, this));
 
         // Value is window/blinds openPercentage
         Routes::Post(router, "/settings/:settingName/:value", Routes::bind(&WindowEndpoint::setSetting, this));
         Routes::Get(router, "/settings/:settingName/", Routes::bind(&WindowEndpoint::getSetting, this));
 
-
         // Auto does not have get route as its status can be seen on /ready route
         Routes::Post(router, "/settings/auto/:settingName/:val", Routes::bind(&WindowEndpoint::setAuto, this));
-        //Routes::Post(router, "/alarm/:val/:val", Routes::bind(&WindowEndpoint::setAuto, this));
+
+        Routes::Post(router, "/alarm/:val/", Routes::bind(&WindowEndpoint::setAlarm, this));
     }
     void AutomaticFeature()
     {
@@ -258,6 +278,17 @@ private:
         if (window.isAutomaticTempEnabled())
         {
             AutomaticTempController();
+        }
+
+        if (window.isAlarmEnabled())
+        {
+            int currTime = time(0);
+            std ::cout << currTime << std ::endl;
+            if (currTime > window.getAlarmStartTime())
+            {
+                window.set(blindStatVal, window.getUserPreferences().blindsOpenPercentage);
+                window.setAlarmStatus(0);
+            }
         }
     }
 
@@ -299,23 +330,60 @@ private:
             window.setAutomaticTemp(val);
             response.send(Http::Code::Ok, " auto " + settingName + " was set to " + std::to_string(val) + "\n");
         }
-        else if (settingName == morningModeVal)
+        else
         {
-            //window.setMorningMode(val);
-            response.send(Http::Code::Ok, " auto " + settingName + " was set to " + std::to_string(val) + "\n");
+            response.send(Http::Code::Not_Found, settingName + " was not found and or '" + std::to_string(val) + "' was not a valid value\n");
+        }
+        // else if (settingName == morningModeVal)
+        // {
+        //     //window.setMorningMode(val);
+        //     response.send(Http::Code::Ok, " auto " + settingName + " was set to " + std::to_string(val) + "\n");
+        // }
+    }
+
+    void setAlarm(const Rest::Request &request, Http::ResponseWriter response)
+    {
+
+        Guard guard(WindowLock);
+
+        int val = 0;
+        if (request.hasParam(":val"))
+        {
+            auto Value = request.param(":val");
+            val = Value.as<int>();
+        }
+
+        if (val > 0)
+        {
+            window.setAutomaticLight(0);
+            window.setAutomaticTemp(0);
+            window.set(windowStatVal, 0);
+            window.set(blindStatVal, 100);
+
+            int currentTime = time(0);
+            window.setAlarmStartTime(currentTime + val);
+            window.setAlarmStatus(1);
+
+            response.send(Http::Code::Ok, "alarm starts in " + std::to_string(val) + "\n");
+        }
+        else if (val == 0)
+        {
+            window.setAlarmStatus(0);
+            response.send(Http::Code::Ok, "alarm disabled\n");
+        }
+        else
+        {
+            response.send(Http::Code::Not_Found, std::to_string(val) + " was not a valid value\n");
         }
     }
 
-    //}
-
-    void
-    handleReady(const Rest::Request &request, Http::ResponseWriter response)
+    void handleReady(const Rest::Request &request, Http::ResponseWriter response)
     {
         std::string windows = "Window " + window.get(windowStatVal);
         std::string blinds = "Blinds " + window.get(blindStatVal);
 
         UserPreferences userPref = window.getUserPreferences();
-        std::string userPrefsText = "\nUser prefs: temp=" + std::to_string(userPref.roomTemperature) + " lightLvl=" + std::to_string(userPref.lightLevel) + "\n";
+        std::string userPrefsText = "\nUser prefs: temp=" + std::to_string(userPref.roomTemperature) + ", lightLvl=" + std::to_string(userPref.lightLevel) + ", alarm blinds open % =" + std::to_string(userPref.blindsOpenPercentage) + "\n";
 
         std::string autoFeatureLight = "Auto Light disabled";
         std::string autoFeatureTemp = "Auto Temp disabled";
@@ -337,7 +405,7 @@ private:
     {
         // This is a guard that prevents editing the same value by two concurent threads.
         Guard guard(WindowLock);
-std :: cout << "test" << std :: endl;
+        std::cout << "test" << std::endl;
         int val1 = 0;
         if (request.hasParam(":val1"))
         {
@@ -356,16 +424,22 @@ std :: cout << "test" << std :: endl;
             auto Value = request.param(":val2");
             val2 = Value.as<int>();
         }
-        else
-        {
-            
-        }
-
-            
 
         if (val2 > 100)
         {
             val2 = 0;
+        }
+
+        int val3 = 0;
+        if (request.hasParam(":val3"))
+        {
+            auto Value = request.param(":val3");
+            val2 = Value.as<int>();
+        }
+
+        if (val3 > 100)
+        {
+            val3 = 0;
         }
 
         // Sending some confirmation or error response.
@@ -373,16 +447,16 @@ std :: cout << "test" << std :: endl;
         {
             response.send(Http::Code::Not_Found,
                           "Not found and or '" + std::to_string(val1) +
-                              "or " + std::to_string(val2) + "' was not a valid value\n");
+                              "or " + std::to_string(val2) + std::to_string(val3) + "' was not a valid value\n");
         }
         else
         {
             // Success
-            window.setUserPreferences(val1, val2);
+            window.setUserPreferences(val1, val2, val3);
         }
 
         response.send(Http::Code::Ok, "User preferences were set to " + std::to_string(val1) + " " +
-                                          std::to_string(val2) + "\n");
+                                          std::to_string(val2) + std::to_string(val3) + "\n");
     }
 
     void getUserSettings(const Rest::Request &, Http::ResponseWriter response)

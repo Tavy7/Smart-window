@@ -93,16 +93,10 @@ private:
             setUserPreferences(20, 20);
             set(windowStatVal, 0);
             set(blindStatVal, 10);
-            //automaticFeatureEnabled = true;
             automaticLightEnabled = false;
             automaticTempEnabled = false;
             alarmEnabled = false;
         }
-
-        // bool isAutomaticEnabled()
-        // {
-        //     return automaticFeatureEnabled;
-        // }
 
         bool isAutomaticLightEnabled()
         {
@@ -119,6 +113,10 @@ private:
             return alarmEnabled;
         }
 
+        void setAlarmEnabled(bool value){
+            alarmEnabled = value;
+        }
+
         std::vector<int> getAlarmStartTime()
         {
             return alarmStartTime;
@@ -127,11 +125,6 @@ private:
         int getAlarmVectorSize(){
             return alarmStartTime.size();
         }
-
-        // void setAutomaticFeature(bool value)
-        // {
-        //     automaticFeatureEnabled = value;
-        // }
 
         void setAutomaticLight(bool value)
         {
@@ -264,10 +257,10 @@ private:
         Routes::Get(router, "/:settingName/", Routes::bind(&WindowEndpoint::getSetting, this));
 
         // Auto does not have get route as its status can be seen on /ready route
-        Routes::Post(router, "/settings/auto/:settingName/:val", Routes::bind(&WindowEndpoint::setAuto, this));
+        Routes::Post(router, "/auto/:settingName/:val", Routes::bind(&WindowEndpoint::setAuto, this));
 
         Routes::Post(router, "/alarm/:val/", Routes::bind(&WindowEndpoint::setAlarm, this));
-        //Routes::Post(router, "/")
+        Routes::Post(router, "/alarm/isOn/:val", Routes::bind(&WindowEndpoint::setAlarmStatus, this));
     }
 
     void AutomaticFeature()
@@ -307,6 +300,24 @@ private:
             this_thread::sleep_for(chrono::milliseconds(1000));
         }
     }
+    
+    void setAlarmStatus(const Rest::Request &request, Http::ResponseWriter response)
+    {
+        Guard guard(WindowLock);
+        
+        bool val = 0;
+        if (request.hasParam(":val"))
+        {
+            auto Value = request.param(":val");
+            val = Value.as<bool>();
+        }
+
+        window.setAlarmEnabled(val);
+
+        response.send(Http::Code::Ok, "Is alarm on? " + std::to_string(val) + "\n");
+
+    }
+
     void setAuto(const Rest::Request &request, Http::ResponseWriter response)
     {
         auto settingName = request.param(":settingName").as<std::string>();
@@ -318,14 +329,6 @@ private:
             auto Value = request.param(":val");
             val = Value.as<bool>();
         }
-
-        // response.send(Http::Code::Ok, settingName + " was set to " + std::to_string(val) + "\n");
-
-        // if (val == true)
-        // {
-        //     AutomaticFeature();
-        // }
-        //AutomaticLightController();
 
         if (settingName == blindStatVal)
         {
@@ -350,7 +353,6 @@ private:
 
     void setAlarm(const Rest::Request &request, Http::ResponseWriter response)
     {
-
         Guard guard(WindowLock);
 
         int val = 0;

@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <pistache/net.h>
 #include <pistache/http.h>
 #include <pistache/peer.h>
@@ -8,70 +8,83 @@
 #include <pistache/router.h>
 #include <pistache/endpoint.h>
 #include <pistache/common.h>
-#include <ctime>    
+#include <ctime>
+#include <chrono>
+#include <thread>
 //#include <mqtt/client.h>
 
 #include <signal.h>
 
 using namespace std;
 using namespace Pistache;
-
 #define windowStatVal "windowStatus"
 #define blindStatVal "blindsStatus"
+#define morningModeVal "morningModeStatus"
 
 // General advice: pay atetntion to the namespaces that you use in various contexts. Could prevent headaches.
 
 // This is just a helper function to preety-print the Cookies that one of the enpoints shall receive.
-void printCookies(const Http::Request& req) {
+void printCookies(const Http::Request &req)
+{
     auto cookies = req.cookies();
     std::cout << "Cookies: [" << std::endl;
     const std::string indent(4, ' ');
-    for (const auto& c: cookies) {
+    for (const auto &c : cookies)
+    {
         std::cout << indent << c.name << " = " << c.value << std::endl;
     }
     std::cout << "]" << std::endl;
 }
 
-// Definition of the WindowEnpoint class 
-class WindowEndpoint {
+// Definition of the WindowEnpoint class
+class WindowEndpoint
+{
 public:
-    struct UserPreferences{
+    struct UserPreferences
+    {
         int roomTemperature;
-      int lightLevel;
+        int lightLevel;
     };
 
     explicit WindowEndpoint(Address addr)
-        : httpEndpoint(std::make_shared<Http::Endpoint>(addr)) { }
+        : httpEndpoint(std::make_shared<Http::Endpoint>(addr)) {}
 
     // Initialization of the server. Additional options can be provided here
-    void init(size_t thr = 2) {
+    void init(size_t thr = 2)
+    {
         auto opts = Http::Endpoint::options()
-            .threads(static_cast<int>(thr));
+                        .threads(static_cast<int>(thr));
         httpEndpoint->init(opts);
         // Server routes are loaded up
         setupRoutes();
     }
 
-    // Server is started threaded.  
-    void start() {
+    // Server is started threaded.
+    void start()
+    {
         httpEndpoint->setHandler(router.handler());
         httpEndpoint->serveThreaded();
-        AutomaticFeature();
+        //AutomaticFeature();
+        thread t1(&WindowEndpoint::ThreadFunction, this);
+        t1.detach();
+        //printTest();
     }
 
     // When signaled server shuts down
-    void stop(){
+    void stop()
+    {
         httpEndpoint->shutdown();
     }
 
 private:
-
-    class Window {
-    // Defining the class of the window. It should model the entire configuration of the window
+    class Window
+    {
+        // Defining the class of the window. It should model the entire configuration of the window
     private:
         UserPreferences userPreferences;
         // Defining and instantiating settings.
-        struct boolSetting{
+        struct boolSetting
+        {
             std::string name;
             // Defines how open is the window/blinds. 0 = closed, 100 = max open
             int openPercentage;
@@ -81,24 +94,74 @@ private:
         boolSetting windowStatus;
         // Blinds status
         boolSetting blindsStatus;
-        bool automaticFeatureEnabled;
+        //bool automaticFeatureEnabled;
+
+        bool automaticLightEnabled;
+        bool automaticTempEnabled;
+        bool morningModeEnabled;
 
     public:
-        explicit Window(){ 
+        explicit Window()
+        {
             // Set default values
-            setUserPreferences(20, 100);
+            setUserPreferences(20, 20);
             set(windowStatVal, 0);
-            set(blindStatVal, 10);    
-            automaticFeatureEnabled = true;
+            set(blindStatVal, 10);
+            //automaticFeatureEnabled = true;
+            automaticLightEnabled = false;
+            automaticTempEnabled = false;
         }
 
-        bool isAutomaticEnabled(){
-            return automaticFeatureEnabled;
+        // bool isAutomaticEnabled()
+        // {
+        //     return automaticFeatureEnabled;
+        // }
+
+        bool isAutomaticLightEnabled()
+        {
+            return automaticLightEnabled;
         }
 
-        void setAutomaticFeature(bool value){
-            automaticFeatureEnabled = value;
+        bool isAutomaticTempEnabled()
+        {
+            return automaticTempEnabled;
         }
+
+        bool isMorningMode()
+        {
+            return morningModeEnabled;
+        }
+
+        // void setAutomaticFeature(bool value)
+        // {
+        //     automaticFeatureEnabled = value;
+        // }
+
+        void setAutomaticLight(bool value)
+        {
+            automaticLightEnabled = value;
+        }
+
+        void setAutomaticTemp(bool value)
+        {
+            automaticTempEnabled = value;
+        }
+
+        // void setMorningMode(bool value)
+        // {
+        //     if (value == 1) { // daca este activat morningMode
+        //         this->setAutomaticLight(0); // atunci opresc automatic light
+        //         this->setAutomaticTemp(0); // opresc automatic temp
+        //         this->windowStatus.openPercentage = 0; // inchid geamul
+        //         this->blindsStatus.openPercentage = 0; // inchid jaluzelele
+        //     } else {
+        //         this->setAutomaticLight(1); // daca morningMode e inchis, atunci pornesc automatic light
+        //         this->setAutomaticTemp(1) // daca morningMode e inchis, atunci pornesc automatic temp
+        //     }
+        //     morningModeEnabled = value;
+        //     //activationtime = 1;
+        //     //alarmtime = 4
+        // }
 
         void setUserPreferences(int temp, int lightLevel)
         {
@@ -106,23 +169,28 @@ private:
             userPreferences.lightLevel = lightLevel;
         }
 
-        UserPreferences getUserPreferences(){
+        UserPreferences getUserPreferences()
+        {
             return userPreferences;
         }
 
         // Setting the value for one of the settings. Hardcoded for the windowStatusing option
-        int set(std::string name, int percentage){
+        int set(std::string name, int percentage)
+        {
 
-            if (percentage < 0 || percentage > 100){
+            if (percentage < 0 || percentage > 100)
+            {
                 percentage = 0;
             }
 
-            if(name == windowStatVal){
+            if (name == windowStatVal)
+            {
                 windowStatus.openPercentage = percentage;
                 return 1;
             }
 
-            if(name == blindStatVal){ 
+            if (name == blindStatVal)
+            {
                 blindsStatus.openPercentage = percentage;
                 return 1;
             }
@@ -131,12 +199,15 @@ private:
         }
 
         // Getter
-        std::string get(std::string name){
-            if (name == windowStatVal){
+        std::string get(std::string name)
+        {
+            if (name == windowStatVal)
+            {
                 return std::to_string(windowStatus.openPercentage);
             }
-            
-            if (name == blindStatVal){
+
+            if (name == blindStatVal)
+            {
                 return std::to_string(blindsStatus.openPercentage);
             }
 
@@ -156,113 +227,182 @@ private:
     std::shared_ptr<Http::Endpoint> httpEndpoint;
     Rest::Router router;
 
-    void setupRoutes() {
+    void setupRoutes()
+    {
         using namespace Rest;
         // Defining various endpoints
-        // Generally say that when http://localhost:9080/ready is called, the handleReady function should be called. 
+        // Generally say that when http://localhost:9080/ready is called, the handleReady function should be called.
         Routes::Get(router, "/ready", Routes::bind(&WindowEndpoint::handleReady, this));
         Routes::Get(router, "/auth", Routes::bind(&WindowEndpoint::doAuth, this));
+
+        Routes::Post(router, "/settings/user/:val1/:val2", Routes::bind(&WindowEndpoint::setUserSettings, this));
+        Routes::Get(router, "/settings/user", Routes::bind(&WindowEndpoint::getUserSettings, this));
+
         // Value is window/blinds openPercentage
         Routes::Post(router, "/settings/:settingName/:value", Routes::bind(&WindowEndpoint::setSetting, this));
         Routes::Get(router, "/settings/:settingName/", Routes::bind(&WindowEndpoint::getSetting, this));
 
-        Routes::Post(router, "/settings/user/:val1/:val2", Routes::bind(&WindowEndpoint::setUserSettings, this));
-        Routes::Get(router, "/settings/user", Routes::bind(&WindowEndpoint::getUserSettings, this));
-        
+
         // Auto does not have get route as its status can be seen on /ready route
-        Routes::Post(router, "/settings/auto/:val", Routes::bind(&WindowEndpoint::setAuto, this));
+        Routes::Post(router, "/settings/auto/:settingName/:val", Routes::bind(&WindowEndpoint::setAuto, this));
+        //Routes::Post(router, "/alarm/:val/:val", Routes::bind(&WindowEndpoint::setAuto, this));
     }
-    
-    void setAuto(const Rest::Request& request, Http::ResponseWriter response){
+    void AutomaticFeature()
+    {
+        //std ::cout << "update test" << endl;
+        if (window.isAutomaticLightEnabled())
+        {
+            AutomaticLightController();
+        }
+
+        if (window.isAutomaticTempEnabled())
+        {
+            AutomaticTempController();
+        }
+    }
+
+    void ThreadFunction()
+    {
+        while (true)
+        {
+            AutomaticFeature();
+            this_thread::sleep_for(chrono::milliseconds(1000));
+        }
+    }
+    void setAuto(const Rest::Request &request, Http::ResponseWriter response)
+    {
+        auto settingName = request.param(":settingName").as<std::string>();
+
         Guard guard(WindowLock);
         bool val = 0;
-        if (request.hasParam(":val")){
+        if (request.hasParam(":val"))
+        {
             auto Value = request.param(":val");
             val = Value.as<bool>();
         }
 
-        if (val == true){
-            AutomaticFeature();
-        }
+        // response.send(Http::Code::Ok, settingName + " was set to " + std::to_string(val) + "\n");
 
-        window.setAutomaticFeature(val);
+        // if (val == true)
+        // {
+        //     AutomaticFeature();
+        // }
+        //AutomaticLightController();
+
+        if (settingName == blindStatVal)
+        {
+            window.setAutomaticLight(val);
+            response.send(Http::Code::Ok, " auto " + settingName + " was set to " + std::to_string(val) + "\n");
+        }
+        else if (settingName == windowStatVal)
+        {
+            window.setAutomaticTemp(val);
+            response.send(Http::Code::Ok, " auto " + settingName + " was set to " + std::to_string(val) + "\n");
+        }
+        else if (settingName == morningModeVal)
+        {
+            //window.setMorningMode(val);
+            response.send(Http::Code::Ok, " auto " + settingName + " was set to " + std::to_string(val) + "\n");
+        }
     }
 
-    void handleReady(const Rest::Request& request, Http::ResponseWriter response) {
+    //}
+
+    void
+    handleReady(const Rest::Request &request, Http::ResponseWriter response)
+    {
         std::string windows = "Window " + window.get(windowStatVal);
         std::string blinds = "Blinds " + window.get(blindStatVal);
-        
-        UserPreferences userPref = window.getUserPreferences();
-        std::string userPrefsText = "\nUser prefs: temp=" + std::to_string(userPref.roomTemperature)
-        + " lightLvl=" + std::to_string(userPref.lightLevel) + "\n";
 
-        std::string autoFeature = "Auto disabled";
-        if (window.isAutomaticEnabled()){
-            autoFeature = "Auto enabled";
+        UserPreferences userPref = window.getUserPreferences();
+        std::string userPrefsText = "\nUser prefs: temp=" + std::to_string(userPref.roomTemperature) + " lightLvl=" + std::to_string(userPref.lightLevel) + "\n";
+
+        std::string autoFeatureLight = "Auto Light disabled";
+        std::string autoFeatureTemp = "Auto Temp disabled";
+        if (window.isAutomaticLightEnabled())
+        {
+            autoFeatureLight = "Auto for LIGHT is enabled";
         }
 
-        std::string textResponse = windows + "\n" + blinds + userPrefsText + autoFeature;
+        if (window.isAutomaticTempEnabled())
+        {
+            autoFeatureTemp = "Auto for TEMP is enabled";
+        }
+
+        std::string textResponse = windows + "\n" + blinds + userPrefsText + autoFeatureLight + "\n" + autoFeatureTemp;
         response.send(Http::Code::Ok, textResponse + "\n");
     }
 
-    void setUserSettings(const Rest::Request& request, Http::ResponseWriter response){
-        // This is a guard that prevents editing the same value by two concurent threads. 
+    void setUserSettings(const Rest::Request &request, Http::ResponseWriter response)
+    {
+        // This is a guard that prevents editing the same value by two concurent threads.
         Guard guard(WindowLock);
-
+std :: cout << "test" << std :: endl;
         int val1 = 0;
-        if (request.hasParam(":val1")) {
+        if (request.hasParam(":val1"))
+        {
             auto Value = request.param(":val1");
             val1 = Value.as<int>();
         }
 
-        if (val1 > 100){
+        if (val1 > 100)
+        {
             val1 = 0;
         }
 
-
         int val2 = 0;
-        if (request.hasParam(":val2")) {
+        if (request.hasParam(":val2"))
+        {
             auto Value = request.param(":val2");
             val2 = Value.as<int>();
         }
+        else
+        {
+            
+        }
 
-        if (val2 > 100){
+            
+
+        if (val2 > 100)
+        {
             val2 = 0;
         }
 
         // Sending some confirmation or error response.
-        if (val1 == 0 || val2 == 0) {
-            response.send(Http::Code::Not_Found,  
-            "Not found and or '" + std::to_string(val1) +
-            "or " + std::to_string(val2) + "' was not a valid value\n");
+        if (val1 == 0 || val2 == 0)
+        {
+            response.send(Http::Code::Not_Found,
+                          "Not found and or '" + std::to_string(val1) +
+                              "or " + std::to_string(val2) + "' was not a valid value\n");
         }
-        else {
+        else
+        {
             // Success
-            window.setUserPreferences(val1, val2);}
-            
-        response.send(Http::Code::Ok, "User preferences were set to " 
-        + std::to_string(val1) + " " + 
-        std::to_string(val2) +"\n");
+            window.setUserPreferences(val1, val2);
+        }
+
+        response.send(Http::Code::Ok, "User preferences were set to " + std::to_string(val1) + " " +
+                                          std::to_string(val2) + "\n");
     }
 
-    void getUserSettings(const Rest::Request&, Http::ResponseWriter response){
-        // This is a guard that prevents editing the same value by two concurent threads. 
+    void getUserSettings(const Rest::Request &, Http::ResponseWriter response)
+    {
+        // This is a guard that prevents editing the same value by two concurent threads.
         Guard guard(WindowLock);
 
-      
         // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
         using namespace Http;
         response.headers()
-                    .add<Header::Server>("pistache/0.1")
-                    .add<Header::ContentType>(MIME(Text, Plain));
-                        
+            .add<Header::Server>("pistache/0.1")
+            .add<Header::ContentType>(MIME(Text, Plain));
+
         UserPreferences userPref = window.getUserPreferences();
-        std::string message = std::to_string(userPref.roomTemperature)
-            + " " + std::to_string(userPref.lightLevel) + "\n";
+        std::string message = std::to_string(userPref.roomTemperature) + " " + std::to_string(userPref.lightLevel) + "\n";
         response.send(Http::Code::Ok, message);
     }
 
-    void doAuth(const Rest::Request& request, Http::ResponseWriter response) {
+    void doAuth(const Rest::Request &request, Http::ResponseWriter response)
+    {
         // Function that prints cookies
         printCookies(request);
         // In the response object, it adds a cookie regarding the communications language.
@@ -273,127 +413,137 @@ private:
     }
 
     // Endpoint to configure one of the Window's settings.
-    void setSetting(const Rest::Request& request, Http::ResponseWriter response){
+    void setSetting(const Rest::Request &request, Http::ResponseWriter response)
+    {
         // You don't know what the parameter content that you receive is, but you should
         // try to cast it to some data structure. Here, I cast the settingName to string.
         auto settingName = request.param(":settingName").as<std::string>();
 
-        // This is a guard that prevents editing the same value by two concurent threads. 
+        // This is a guard that prevents editing the same value by two concurent threads.
         Guard guard(WindowLock);
 
         int val;
         // If request has value for open-percentage
-        if (request.hasParam(":value")) {
+        if (request.hasParam(":value"))
+        {
             auto Value = request.param(":value");
             val = Value.as<int>();
         }
 
+        //std ::cout << "test setsett";
         // Setting the Window's setting to value
         int setResponse = window.set(settingName, val);
 
         // Sending some confirmation or error response.
-        if (setResponse == 1) {
+        if (setResponse == 1)
+        {
             response.send(Http::Code::Ok, settingName + " was set to " + std::to_string(val) + "\n");
         }
-        else {
+        else
+        {
             response.send(Http::Code::Not_Found, settingName + " was not found and or '" + std::to_string(val) + "' was not a valid value\n");
         }
     }
 
     // Setting to get the settings value of one of the configurations of the Window
-    void getSetting(const Rest::Request& request, Http::ResponseWriter response){
+    void getSetting(const Rest::Request &request, Http::ResponseWriter response)
+    {
         auto settingName = request.param(":settingName").as<std::string>();
         Guard guard(WindowLock);
 
         string valueSetting = window.get(settingName);
 
-        if (valueSetting != "") {
+        if (valueSetting != "")
+        {
 
             // In this response I also add a couple of headers, describing the server that sent this response, and the way the content is formatted.
             using namespace Http;
             response.headers()
-                        .add<Header::Server>("pistache/0.1")
-                        .add<Header::ContentType>(MIME(Text, Plain));
+                .add<Header::Server>("pistache/0.1")
+                .add<Header::ContentType>(MIME(Text, Plain));
 
             response.send(Http::Code::Ok, settingName + " is " + valueSetting);
         }
-        else {
+        else
+        {
             response.send(Http::Code::Not_Found, settingName + " was not found");
         }
     }
 
     // Returns a number between 0-100
-    int getLightIntensity(){
+    int getLightIntensity()
+    {
+        srand(time(0));
         return rand() % 101;
     }
 
     // Returns a number between 0-100 - this simulates a temperature sensor
-    int getInsideTemperature(){
-        return rand() % 101;
+    int getInsideTemperature()
+    {
+        int currTime = time(0);
+        srand(currTime + 1);
+        return rand() % 41;
     }
 
     // Returns a number between 0-100 - this simulates a temperature sensor
-    int getOutsideTemperature(){
-        return rand() % 101;
+    int getOutsideTemperature()
+    {
+        int currTime = time(0);
+        srand(currTime);
+        return rand() % 41;
     }
 
-    int findPercentage(int inTemp, int outTemp, int prefTemp){
+    int findPercentage(int inTemp, int outTemp, int prefTemp)
+    {
         bool cond1 = inTemp < prefTemp < outTemp;
         bool cond2 = outTemp < prefTemp < inTemp;
 
+        // std :: cout << inTemp << std :: endl;
+        // std :: cout << outTemp << std :: endl;
         // If opening window helps inTemp reach pref temp
-        if (cond1 || cond2){
+        if (cond1 || cond2)
+        {
             unsigned int tempDifference = abs(inTemp - outTemp);
             // Open the window 15% for every grade in temp difference
-            int percentage = tempDifference * 15;
-            if (percentage > 100){
+            int percentage = tempDifference * 2.6;
+            if (percentage > 100)
+            {
                 percentage = 100;
             }
 
             return percentage;
         }
-        
+
         // Opening the window won't help to reach pref temp
         return 0;
     }
 
-    void AutomaticTempController(){ 
+    void AutomaticTempController()
+    {
         int insideTemp = getInsideTemperature();
         int outsideTemp = getOutsideTemperature();
-        
+
         int prefTemp = window.getUserPreferences().roomTemperature;
         int percentage = findPercentage(insideTemp, outsideTemp, prefTemp);
 
         window.set(windowStatVal, percentage);
     }
-        
-    void AutomaticLightController(){
+
+    void AutomaticLightController()
+    {
         // Light intensity and blindStatVal are both a percentage about light
-        int lightIntensity = getLightIntensity(); 
-        int percentage = lightIntensity;
+        int lightIntensity = getLightIntensity();
 
         int userLightIntPref = window.getUserPreferences().lightLevel;
 
-        percentage = 100 - (userLightIntPref / lightIntensity) * 100;
+        float percentage = 100 - (float(userLightIntPref) / float(lightIntensity)) * 100;
 
-        window.set(blindStatVal, percentage);   
+        window.set(blindStatVal, percentage);
     }
-
-     void AutomaticFeature(){
-            window.setAutomaticFeature(true);
-            AutomaticLightController();
-            AutomaticTempController();
-            int one_minute = 60;
-            while(window.isAutomaticEnabled()){
-                sleep(one_minute);
-                AutomaticLightController();
-                sleep(one_minute + 60 * 14);
-                AutomaticTempController();
-            }
-     }
 };
 
-void mqttExample() {
+void mqttExample()
+{
     const std::string address = "localhost";
     const std::string clientId = "window";
 
@@ -424,26 +574,25 @@ void mqttExample() {
     // }
 }
 
-void httpExample(int argc, char *argv[]){
+void httpExample(int argc, char *argv[])
+{
 
     // This code is needed for gracefull shutdown of the server when no longer needed.
     sigset_t signals;
-    if (sigemptyset(&signals) != 0
-            || sigaddset(&signals, SIGTERM) != 0
-            || sigaddset(&signals, SIGINT) != 0
-            || sigaddset(&signals, SIGHUP) != 0
-            || pthread_sigmask(SIG_BLOCK, &signals, nullptr) != 0) {
+    if (sigemptyset(&signals) != 0 || sigaddset(&signals, SIGTERM) != 0 || sigaddset(&signals, SIGINT) != 0 || sigaddset(&signals, SIGHUP) != 0 || pthread_sigmask(SIG_BLOCK, &signals, nullptr) != 0)
+    {
         perror("install signal handler failed");
         return;
     }
 
     // Set a port on which your server to communicate
-    Port port(9080);
+    Port port(9091);
 
     // Number of threads used by the server
     int thr = 2;
 
-    if (argc >= 2) {
+    if (argc >= 2)
+    {
         port = static_cast<uint16_t>(std::stol(argv[1]));
 
         if (argc == 3)
@@ -451,7 +600,7 @@ void httpExample(int argc, char *argv[]){
     }
 
     srand(thr);
-    
+
     Address addr(Ipv4::any(), port);
 
     cout << "Cores = " << hardware_concurrency() << endl;
@@ -479,15 +628,17 @@ void httpExample(int argc, char *argv[]){
     stats.stop();
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 
-	int program = fork();
+    //int program = fork();
+    httpExample(argc, argv);
 
-	// Parent executes mqtt
-	if (program > 0){
-    	//mqttExample();
-	}
-	else if (program == 0){
-		httpExample(argc, argv);
-	}
+    // // Parent executes mqtt
+    // if (program > 0){
+    // 	//mqttExample();
+    // }
+    // else if (program == 0){
+    // 	httpExample(argc, argv);
+    // }
 }

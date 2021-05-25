@@ -28,8 +28,7 @@ public:
     struct UserPreferences
     {
         int roomTemperature;
-        int lightLevel;
-        int blindsOpenPercentage;
+        int blindsLevel;
     };
 
     explicit WindowEndpoint(Address addr)
@@ -80,19 +79,18 @@ private:
         boolSetting windowStatus;
         // Blinds status
         boolSetting blindsStatus;
-        //bool automaticFeatureEnabled;
 
         bool automaticLightEnabled;
         bool automaticTempEnabled;
         bool alarmEnabled;
 
-        int alarmStartTime;
+        std::vector<int> alarmStartTime;
 
     public:
         explicit Window()
         {
             // Set default values
-            setUserPreferences(20, 20, 50);
+            setUserPreferences(20, 20);
             set(windowStatVal, 0);
             set(blindStatVal, 10);
             //automaticFeatureEnabled = true;
@@ -121,9 +119,13 @@ private:
             return alarmEnabled;
         }
 
-        int getAlarmStartTime()
+        std::vector<int> getAlarmStartTime()
         {
             return alarmStartTime;
+        }
+        
+        int getAlarmVectorSize(){
+            return alarmStartTime.size();
         }
 
         // void setAutomaticFeature(bool value)
@@ -146,16 +148,30 @@ private:
             alarmEnabled = value;
         }
 
-        void setAlarmStartTime(int value)
-        {
-            alarmStartTime = value;
+        void popAlarmList(){
+            // Get last element
+            int element = alarmStartTime.back();
+            // Remove last element
+            alarmStartTime.pop_back();
+
+            int size = alarmStartTime.size(); 
+            if (size > 0){
+                // If list has atleast one more element
+                // I substract time already spent from the last one
+                alarmStartTime[size - 1] -= element;
+            }
         }
 
-        void setUserPreferences(int temp, int lightLevel, int blindsPerc)
+        void setAlarmStartTime(int value)
+        {
+            alarmStartTime.push_back(value);
+            // TODO Sort vector after adding a new value
+        }
+
+        void setUserPreferences(int temp, int blindsLevel)
         {
             userPreferences.roomTemperature = temp;
-            userPreferences.lightLevel = lightLevel;
-            userPreferences.blindsOpenPercentage = blindsPerc;
+            userPreferences.blindsLevel = blindsLevel;
         }
 
         // void setMorningMode(bool value)
@@ -240,18 +256,20 @@ private:
         Routes::Get(router, "/ready", Routes::bind(&WindowEndpoint::handleReady, this));
         Routes::Get(router, "/auth", Routes::bind(&WindowEndpoint::doAuth, this));
 
-        Routes::Post(router, "/settings/user/:val1/:val2/:val3", Routes::bind(&WindowEndpoint::setUserSettings, this));
-        Routes::Get(router, "/settings/user", Routes::bind(&WindowEndpoint::getUserSettings, this));
+        Routes::Post(router, "/user/:val1/:val2", Routes::bind(&WindowEndpoint::setUserSettings, this));
+        Routes::Get(router, "/user", Routes::bind(&WindowEndpoint::getUserSettings, this));
 
         // Value is window/blinds openPercentage
-        Routes::Post(router, "/settings/:settingName/:value", Routes::bind(&WindowEndpoint::setSetting, this));
-        Routes::Get(router, "/settings/:settingName/", Routes::bind(&WindowEndpoint::getSetting, this));
+        Routes::Post(router, "/:settingName/:value", Routes::bind(&WindowEndpoint::setSetting, this));
+        Routes::Get(router, "/:settingName/", Routes::bind(&WindowEndpoint::getSetting, this));
 
         // Auto does not have get route as its status can be seen on /ready route
         Routes::Post(router, "/settings/auto/:settingName/:val", Routes::bind(&WindowEndpoint::setAuto, this));
 
         Routes::Post(router, "/alarm/:val/", Routes::bind(&WindowEndpoint::setAlarm, this));
+        //Routes::Post(router, "/")
     }
+
     void AutomaticFeature()
     {
         //std ::cout << "update test" << endl;
@@ -269,10 +287,14 @@ private:
         {
             int currTime = time(0);
             std ::cout << currTime << std ::endl;
-            if (currTime > window.getAlarmStartTime())
+            int alarmVectorSize = window.getAlarmVectorSize();
+            int alarmTime = window.getAlarmStartTime()[alarmVectorSize - 1];
+
+            if (currTime > alarmTime)
             {
-                window.set(blindStatVal, window.getUserPreferences().blindsOpenPercentage);
+                window.set(blindStatVal, 100);
                 window.setAlarmStatus(0);
+                window.popAlarmList();
             }
         }
     }
@@ -340,10 +362,11 @@ private:
 
         if (val > 0)
         {
-            window.setAutomaticLight(0);
-            window.setAutomaticTemp(0);
-            window.set(windowStatVal, 0);
-            window.set(blindStatVal, 100);
+            // dc se leaga de astea cand setezi alarma??
+            // window.setAutomaticLight(0);
+            // window.setAutomaticTemp(0);
+            // window.set(windowStatVal, 0);
+            // window.set(blindStatVal, 100);
 
             int currentTime = time(0);
             window.setAlarmStartTime(currentTime + val);
@@ -368,7 +391,9 @@ private:
         std::string blinds = "Blinds " + window.get(blindStatVal);
 
         UserPreferences userPref = window.getUserPreferences();
-        std::string userPrefsText = "\nUser prefs: temp=" + std::to_string(userPref.roomTemperature) + ", lightLvl=" + std::to_string(userPref.lightLevel) + ", alarm blinds open % =" + std::to_string(userPref.blindsOpenPercentage) + "\n";
+        std::string userPrefsText = "\nUser prefs: temp=" + std::to_string(userPref.roomTemperature) 
+        + ", lightLvl=" + std::to_string(userPref.blindsLevel) + ", alarm blinds open % ="
+        + std::to_string(100 - userPref.blindsLevel) + "\n";
 
         std::string autoFeatureLight = "Auto Light disabled";
         std::string autoFeatureTemp = "Auto Temp disabled";
@@ -415,33 +440,21 @@ private:
             val2 = 0;
         }
 
-        int val3 = 0;
-        if (request.hasParam(":val3"))
-        {
-            auto Value = request.param(":val3");
-            val2 = Value.as<int>();
-        }
-
-        if (val3 > 100)
-        {
-            val3 = 0;
-        }
-
         // Sending some confirmation or error response.
         if (val1 == 0 || val2 == 0)
         {
             response.send(Http::Code::Not_Found,
                           "Not found and or '" + std::to_string(val1) +
-                              "or " + std::to_string(val2) + std::to_string(val3) + "' was not a valid value\n");
+                              "or " + std::to_string(val2) + " was not a valid value\n");
         }
         else
         {
             // Success
-            window.setUserPreferences(val1, val2, val3);
+            window.setUserPreferences(val1, val2);
         }
 
         response.send(Http::Code::Ok, "User preferences were set to " + std::to_string(val1) + " " +
-                                          std::to_string(val2) + std::to_string(val3) + "\n");
+                                          std::to_string(val2) + "\n");
     }
 
     void getUserSettings(const Rest::Request &, Http::ResponseWriter response)
@@ -456,7 +469,7 @@ private:
             .add<Header::ContentType>(MIME(Text, Plain));
 
         UserPreferences userPref = window.getUserPreferences();
-        std::string message = std::to_string(userPref.roomTemperature) + " " + std::to_string(userPref.lightLevel) + "\n";
+        std::string message = std::to_string(userPref.roomTemperature) + " " + std::to_string(userPref.blindsLevel) + "\n";
         response.send(Http::Code::Ok, message);
     }
 
@@ -591,7 +604,7 @@ private:
         // Light intensity and blindStatVal are both a percentage about light
         int lightIntensity = getLightIntensity();
 
-        int userLightIntPref = window.getUserPreferences().lightLevel;
+        int userLightIntPref = 100 - window.getUserPreferences().blindsLevel;
 
         float percentage = 100 - (float(userLightIntPref) / float(lightIntensity)) * 100;
 

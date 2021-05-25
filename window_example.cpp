@@ -21,21 +21,6 @@ using namespace Pistache;
 #define blindStatVal "blindsStatus"
 #define morningModeVal "morningModeStatus"
 
-// General advice: pay atetntion to the namespaces that you use in various contexts. Could prevent headaches.
-
-// This is just a helper function to preety-print the Cookies that one of the enpoints shall receive.
-void printCookies(const Http::Request &req)
-{
-    auto cookies = req.cookies();
-    std::cout << "Cookies: [" << std::endl;
-    const std::string indent(4, ' ');
-    for (const auto &c : cookies)
-    {
-        std::cout << indent << c.name << " = " << c.value << std::endl;
-    }
-    std::cout << "]" << std::endl;
-}
-
 // Definition of the WindowEnpoint class
 class WindowEndpoint
 {
@@ -477,8 +462,6 @@ private:
 
     void doAuth(const Rest::Request &request, Http::ResponseWriter response)
     {
-        // Function that prints cookies
-        printCookies(request);
         // In the response object, it adds a cookie regarding the communications language.
         response.cookies()
             .add(Http::Cookie("lang", "en-US"));

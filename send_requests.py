@@ -53,8 +53,10 @@ def autoBlinds():
 
 def setAlarm():
     seconds = str(int(input("Enter amount of seconds = ")))
-    return "curl -XPOST " + adress + "/alarm/" + seconds
+    percentage = str(int(input("Enter blinds percentage = ")))
+    return "curl -XPOST " + adress + "/alarm/" + seconds + "/" + percentage
 
 def toggleAlarm():
-    return "curl -XPOST " + adress + "/alarm/isOn" + trueOrFalse()
+    return "curl -XPOST " + adress + "/alarm/isOn/" + trueOrFalse()
+
 

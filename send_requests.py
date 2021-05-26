@@ -4,7 +4,7 @@ import os
 # python -i send_requests.py 
 # use cmd(function()) to run requests
 
-port = 9091
+port = 9080
 adress = "http://localhost:" + str(port) + "/"
 
 def cmd(text):

@@ -11,6 +11,9 @@
 #include <ctime>
 #include <chrono>
 #include <thread>
+#include <fstream>
+
+// TODO LOGGINING
 
 //#include <mqtt/client.h>
 
@@ -22,6 +25,18 @@ using namespace Pistache;
 #define blindStatVal "blindsStatus"
 #define weatherModeVal "weatherMode"
 
+void logger(std::string message){
+    message += "\n";
+    cout << message;
+
+    // poate putem face cumva sa nu mai deschid fisierul mereu can apelam logger
+    ofstream file;
+    // numele fisierului ar trb sa aiba un timestamp
+    file.open("log.txt");
+    file << message;
+    file.close();
+}
+
 // Definition of the WindowEnpoint class
 class WindowEndpoint
 {
@@ -30,11 +45,6 @@ public:
     {
         int roomTemperature;
         int blindsLevel;
-
-        //weather prefs
-        // int rainyPref;
-        // int cloudyPref;
-        // int sunnyPref;
         std::unordered_map<std::string, int> weatherVals;
     };
 
@@ -54,6 +64,7 @@ public:
     // Server is started threaded.
     void start()
     {
+        logger("HTTP Server started...");
         httpEndpoint->setHandler(router.handler());
         httpEndpoint->serveThreaded();
         //AutomaticFeature();
@@ -91,7 +102,11 @@ private:
         bool automaticTempEnabled;
         bool alarmEnabled;
         bool weatherModeEnabled;
-
+        bool ledPower;
+        std::string ledcolor;
+        bool selfCleaning;
+        int cleanPercentage;
+        
         std::vector<pair<int, int>> alarmStartTime;
         std::vector<std::string> weatherStates{"rainy", "cloudy", "sunny"};
         std::vector<std::string> windowOpenTime;
@@ -100,14 +115,27 @@ private:
     public:
         explicit Window()
         {
-            // Set default values
+            // Am putea face si cu json pt al treilea input...
+            ifstream file;
+            file.open("input.txt");
 
-            setUserPreferences(20, 20, 40, 50, 60);
+            vector<int> upf;
+            std::string value;
+            while (getline(file, value)){
+                int val = stoi(value);
+                upf.push_back(val);
+                value = "";
+            }
+
+            // Set default values
+            setUserPreferences(upf[0], upf[1], upf[2], upf[3], upf[4]);
+            //setUserPreferences(20, 20, 40, 50, 60);
             set(windowStatVal, 0);
             set(blindStatVal, 10);
             automaticLightEnabled = false;
             automaticTempEnabled = false;
             alarmEnabled = false;
+            ledPower = false;
         }
 
 #pragma region
@@ -134,6 +162,38 @@ private:
         std::vector<std::string> getWeatherStates()
         {
             return weatherStates;
+        }
+
+        void setLedPower(bool value){
+            ledPower = value;
+        }
+
+        bool getLedPower(){
+            return ledPower;
+        }
+
+        void setLedColor(std::string value){
+            ledcolor = value;
+        }
+
+        std::string getLedColor(){
+            return ledcolor;
+        }
+
+        void setSelfCleaning(bool value){
+            selfCleaning = value;
+        }
+        
+        bool getSelfCleaning(){
+            return selfCleaning;
+        }
+
+        void setCleanPercentage(int value){
+            cleanPercentage = value;
+        }
+        
+        int getCleanPercentage(){
+            return cleanPercentage;
         }
 
         bool isAutomaticLightEnabled()
@@ -210,10 +270,6 @@ private:
             userPreferences.roomTemperature = temp;
             userPreferences.blindsLevel = blindsLevel;
 
-            // userPreferences.rainyPref = rainyPref;
-            // userPreferences.cloudyPref = cloudyPref;
-            // userPreferences.sunnyPref = sunnyPref;
-
             userPreferences.weatherVals["rainy"] = rainyPref;
             userPreferences.weatherVals["cloudy"] = cloudyPref;
             userPreferences.weatherVals["sunny"] = sunnyPref;
@@ -288,30 +344,36 @@ private:
         Routes::Post(router, "/user/:val1/:val2/:val3/:val4/:val5", Routes::bind(&WindowEndpoint::setUserSettings, this));
         Routes::Get(router, "/user", Routes::bind(&WindowEndpoint::getUserSettings, this));
         // :action = open || close
-        Routes::Post(router, "/user/windowTimer/:action/:hour/:min", Routes::bind(&WindowEndpoint::setWindowTimer, this));
+        Routes::Post(router, "/windowTimer/:action/:hour/:minute", Routes::bind(&WindowEndpoint::setWindowTimer, this));
 
         // Value is window/blinds openPercentage
         Routes::Post(router, "/:settingName/:value", Routes::bind(&WindowEndpoint::setSetting, this));
-        Routes::Get(router, "/:settingName/", Routes::bind(&WindowEndpoint::getSetting, this));
+        Routes::Get(router, "/:settingName", Routes::bind(&WindowEndpoint::getSetting, this));
 
         // Auto does not have get route as its status can be seen on /ready route
         Routes::Post(router, "/auto/:settingName/:val", Routes::bind(&WindowEndpoint::setAuto, this));
 
         Routes::Post(router, "/alarm/:val1/:val2", Routes::bind(&WindowEndpoint::setAlarm, this));
         Routes::Post(router, "/alarm/isOn/:val", Routes::bind(&WindowEndpoint::setAlarmStatus, this));
+
+        Routes::Post(router, "/led/power/:val", Routes::bind(&WindowEndpoint::setLeds, this));
+        Routes::Post(router, "/led/color/:val", Routes::bind(&WindowEndpoint::setLedsColor, this));
+        Routes::Post(router, "/selfclean/:val", Routes::bind(&WindowEndpoint::setSelfClean, this));
     }
 
     // Returns time in format hh:mmAM
     std::string getCurrentTime()
     {
-#include <time.h>
+        #include <time.h>
         time_t rawtime;
         struct tm *timeinfo;
 
         time(&rawtime);
         timeinfo = localtime(&rawtime);
 
-        return asctime(timeinfo);
+        std::string time = asctime(timeinfo);
+        // hours:minute begins at pos 11, we only need first 5 pos
+        return time.substr(11, 5);
     }
 
     void AutomaticFeature()
@@ -352,7 +414,7 @@ private:
             std::string currTime = getCurrentTime();
             for (auto openTime : wndwOpenTime)
             {
-                if (currTime.compare(openTime) == 0)
+                if (currTime == openTime)
                 {
                     // Open the window
                     int roomTemp = window.getUserPreferences().roomTemperature;
@@ -380,7 +442,6 @@ private:
 
         if (window.isWeatherModeEnabled())
         {
-
             std::string key = getWeather();
             auto weatherVals = window.getUserPreferences().weatherVals;
 
@@ -390,8 +451,17 @@ private:
                 window.set(blindStatVal, percentage);
 
             }
-
             std::cout << key << std::endl;
+        }
+
+        int cleanPercentage = getSensorCleanPergentage();
+        if (cleanPercentage < 100){
+            window.setCleanPercentage(cleanPercentage);
+            // Start cleaning
+            int cleanSpeed = 100 - cleanPercentage;
+
+            // TODO sa legam cleaning de vreme sau altcv
+            // ca nu stiu ce sa fac mai departe :))
         }
     }
 
@@ -406,10 +476,11 @@ private:
 
     void setWindowTimer(const Rest::Request &request, Http::ResponseWriter response)
     {
+        logger("setWindowTimer");
         Guard guard(WindowLock);
 
         int hour = 0;
-        if (request.hasParam("hour"))
+        if (request.hasParam(":hour"))
         {
             auto value = request.param(":hour");
             hour = value.as<int>();
@@ -417,10 +488,10 @@ private:
             {
                 hour = 0;
             }
-        }
+        }   
 
         int minute = 0;
-        if (request.hasParam("minute"))
+        if (request.hasParam(":minute"))
         {
             auto value = request.param(":minute");
             minute = value.as<int>();
@@ -430,33 +501,30 @@ private:
             }
         }
 
-        // Formatam textul hh:mmAM
-        std::string timeOfTheDay = "AM";
-        if (hour > 24)
-        {
-            hour -= 12;
-            timeOfTheDay = "PM";
-        }
-
-        std::string inputTime = std::to_string(hour) + ":" + std::to_string(minute) + timeOfTheDay;
+        // Formatam textul hh:mm
+        std::string inputTime = std::to_string(hour) + ":" + std::to_string(minute);
 
         std::string actionName;
-        if (request.hasParam("action"))
+        if (request.hasParam(":action"))
         {
             auto value = request.param(":action");
             actionName = value.as<std::string>();
         }
 
         std::string actionOpen = "open";
-        if (actionName.compare(actionOpen) == 0)
+        std::string actionClose = "close";
+        if (actionName == actionOpen)
         {
             window.addWindowOpenTime(inputTime);
+            response.send(Http::Code::Ok, "Window will open at " + inputTime + "\n");
         }
-
-        std::string actionClose = "close";
-        if (actionName.compare(actionClose) == 0)
+        else if (actionName.compare(actionClose) == 0)
         {
             window.addWindowCloseTime(inputTime);
+            response.send(Http::Code::Ok, "Window will close at " + inputTime + "\n");
+        }
+        else{
+            response.send(Http::Code::Not_Found, "Wrong action\n");
         }
     }
 
@@ -476,6 +544,60 @@ private:
         response.send(Http::Code::Ok, "Is alarm on? " + std::to_string(val) + "\n");
     }
 
+    void setSelfClean(const Rest::Request &request, Http::ResponseWriter response){
+        Guard guard(WindowLock);
+
+        bool val = 0;
+        if (request.hasParam(":val"))
+        {
+            auto Value = request.param(":val");
+            val = Value.as<bool>();
+        }
+
+        window.setSelfCleaning(val);
+        response.send(Http::Code::Ok, "Is selfcleaning on? " + std::to_string(val) + "\n");
+    }
+
+    void setLeds(const Rest::Request &request, Http::ResponseWriter response){
+        Guard guard(WindowLock);
+
+        bool val = 0;
+        if (request.hasParam(":val"))
+        {
+            auto Value = request.param(":val");
+            val = Value.as<bool>();
+        }
+
+        window.setLedPower(val);
+        std::string color = window.getLedColor();
+        if (color == ""){
+            window.setLedColor("000000");
+        }
+
+        response.send(Http::Code::Ok, "Are Led on? " + std::to_string(val) + "\n");
+    }
+
+    void setLedsColor(const Rest::Request &request, Http::ResponseWriter response){
+        Guard guard(WindowLock);
+
+        std::string val = "";
+        if (request.hasParam(":val"))
+        {
+            auto Value = request.param(":val");
+            val = Value.as<std::string>();
+        }
+
+        //validate input wih regex
+        if ( regex_match (val, regex("[a-fA-F0-9]{6}") ))
+        {
+            window.setLedPower(true);
+            window.setLedColor(val);
+            response.send(Http::Code::Ok, "Led are set to " + val + "\n");
+            return;
+        }
+
+        response.send(Http::Code::Not_Found, "Bad input");
+    }
     // void setWeather(const Rest::Request &request, Http::ResponseWriter response)
     // {
     //    auto settingName = request.param(":weatherType").as<std::string>();
@@ -561,6 +683,8 @@ private:
 
     void handleReady(const Rest::Request &request, Http::ResponseWriter response)
     {
+        
+        logger("[GET] /ready");
         std::string windows = "Window " + window.get(windowStatVal);
         std::string blinds = "Blinds " + window.get(blindStatVal);
 
@@ -582,7 +706,19 @@ private:
             autoFeatureTemp = "Auto for TEMP is enabled";
         }
 
-        std::string textResponse = windows + "\n" + blinds + userPrefsText + autoFeatureLight + "\n" + autoFeatureTemp;
+        std::string ledStatus = "\nLeds are off\n";
+        if (window.getLedPower()){
+            ledStatus = "\nLeds are on, color " + window.getLedColor() + "\n";
+        }
+
+        std::string selfClean = "Self cleaning is off\n";
+        if (window.getSelfCleaning()){
+            selfClean = "Self cleaning is on " + std::to_string(window.getCleanPercentage()) + "\n";
+        }
+
+        std::string textResponse = windows + "\n" + blinds 
+        + userPrefsText + autoFeatureLight + "\n" + autoFeatureTemp
+        + ledStatus + selfClean;
         response.send(Http::Code::Ok, textResponse + "\n");
     }
 
@@ -764,6 +900,11 @@ private:
         return rand() % 41;
     }
 
+    // Simulate clean sensor
+    int getSensorCleanPergentage(){
+        return rand() % 100;
+    }
+
     std::string getWeather()
     {
         // window.
@@ -868,7 +1009,7 @@ void httpExample(int argc, char *argv[])
     }
 
     // Set a port on which your server to communicate
-    Port port(9091);
+    Port port(9080);
 
     // Number of threads used by the server
     int thr = 2;

@@ -34,7 +34,7 @@ void logger(std::string message){
     // poate putem face cumva sa nu mai deschid fisierul mereu can apelam logger
     ofstream file;
     // numele fisierului ar trb sa aiba un timestamp
-    file.open("log.txt");
+    file.open("log.txt" , std::ofstream::app);
     file << message;
     file.close();
 }

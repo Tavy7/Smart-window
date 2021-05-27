@@ -24,6 +24,8 @@ using namespace Pistache;
 #define windowStatVal "windowStatus"
 #define blindStatVal "blindsStatus"
 #define weatherModeVal "weatherMode"
+#define safetyAlarmVal "alarmMode"
+
 
 void logger(std::string message){
     message += "\n";
@@ -100,14 +102,17 @@ private:
 
         bool automaticLightEnabled;
         bool automaticTempEnabled;
-        bool alarmEnabled;
+        bool scheduleEnabled;
         bool weatherModeEnabled;
         bool ledPower;
+        bool alarmModeEnabled;
+        bool alarmActivated;
+
         std::string ledcolor;
         bool selfCleaning;
         int cleanPercentage;
-        
-        std::vector<pair<int, int>> alarmStartTime;
+
+        std::vector<pair<int, int>> scheduleStartTime;
         std::vector<std::string> weatherStates{"rainy", "cloudy", "sunny"};
         std::vector<std::string> windowOpenTime;
         std::vector<std::string> windowCloseTime;
@@ -121,7 +126,8 @@ private:
 
             vector<int> upf;
             std::string value;
-            while (getline(file, value)){
+            while (getline(file, value))
+            {
                 int val = stoi(value);
                 upf.push_back(val);
                 value = "";
@@ -134,8 +140,11 @@ private:
             set(blindStatVal, 10);
             automaticLightEnabled = false;
             automaticTempEnabled = false;
-            alarmEnabled = false;
+            scheduleEnabled = false;
             ledPower = false;
+            alarmModeEnabled = false;
+            alarmActivated = false;
+            weatherModeEnabled = false;
         }
 
 #pragma region
@@ -164,35 +173,43 @@ private:
             return weatherStates;
         }
 
-        void setLedPower(bool value){
+        void setLedPower(bool value)
+        {
             ledPower = value;
         }
 
-        bool getLedPower(){
+        bool getLedPower()
+        {
             return ledPower;
         }
 
-        void setLedColor(std::string value){
+        void setLedColor(std::string value)
+        {
             ledcolor = value;
         }
 
-        std::string getLedColor(){
+        std::string getLedColor()
+        {
             return ledcolor;
         }
 
-        void setSelfCleaning(bool value){
+        void setSelfCleaning(bool value)
+        {
             selfCleaning = value;
         }
-        
-        bool getSelfCleaning(){
+
+        bool getSelfCleaning()
+        {
             return selfCleaning;
         }
 
-        void setCleanPercentage(int value){
+        void setCleanPercentage(int value)
+        {
             cleanPercentage = value;
         }
-        
-        int getCleanPercentage(){
+
+        int getCleanPercentage()
+        {
             return cleanPercentage;
         }
 
@@ -206,14 +223,14 @@ private:
             return automaticTempEnabled;
         }
 
-        bool isAlarmEnabled()
+        bool isScheduleEnabled()
         {
-            return alarmEnabled;
+            return scheduleEnabled;
         }
 
-        void setAlarmEnabled(bool value)
+        void setScheduleEnabled(bool value)
         {
-            alarmEnabled = value;
+            scheduleEnabled = value;
         }
 
         bool isWeatherModeEnabled()
@@ -221,19 +238,19 @@ private:
             return weatherModeEnabled;
         }
 
+        std::vector<pair<int, int>> getScheduleStartTime()
+        {
+            return scheduleStartTime;
+        }
+
         void setWeatherMode(bool value)
         {
             weatherModeEnabled = value;
         }
 
-        std::vector<pair<int, int>> getAlarmStartTime()
+        int getScheduleVectorSize()
         {
-            return alarmStartTime;
-        }
-
-        int getAlarmVectorSize()
-        {
-            return alarmStartTime.size();
+            return scheduleStartTime.size();
         }
 
         void setAutomaticLight(bool value)
@@ -246,23 +263,44 @@ private:
             automaticTempEnabled = value;
         }
 
-        void setAlarmStatus(bool value)
+        void setScheduleStatus(bool value)
         {
-            alarmEnabled = value;
+            scheduleEnabled = value;
         }
+
+        bool isAlarmModeEnabled()
+        {
+            return alarmModeEnabled;
+        }
+
+        void setAlarmMode(bool value)
+        {
+            alarmModeEnabled = value;
+        }
+
+        bool isAlarmActive()
+        {
+            return alarmActivated;
+        }
+
+        void setAlarmActive(bool value)
+        {
+            alarmActivated = value;
+        }
+
 #pragma endregion
 
-        void popAlarmList()
+        void popScheduleList()
         {
             // Remove last element
-            alarmStartTime.pop_back();
+            scheduleStartTime.pop_back();
         }
 
-        void addAlarmStartTime(pair<int, int> value)
+        void addScheduleStartTime(pair<int, int> value)
         {
-            alarmStartTime.push_back(value);
-            std::sort(alarmStartTime.begin(), alarmStartTime.end());
-            std::reverse(alarmStartTime.begin(), alarmStartTime.end());
+            scheduleStartTime.push_back(value);
+            std::sort(scheduleStartTime.begin(), scheduleStartTime.end());
+            std::reverse(scheduleStartTime.begin(), scheduleStartTime.end());
         }
 
         void setUserPreferences(int temp, int blindsLevel, int rainyPref, int cloudyPref, int sunnyPref)
@@ -353,8 +391,8 @@ private:
         // Auto does not have get route as its status can be seen on /ready route
         Routes::Post(router, "/auto/:settingName/:val", Routes::bind(&WindowEndpoint::setAuto, this));
 
-        Routes::Post(router, "/alarm/:val1/:val2", Routes::bind(&WindowEndpoint::setAlarm, this));
-        Routes::Post(router, "/alarm/isOn/:val", Routes::bind(&WindowEndpoint::setAlarmStatus, this));
+        Routes::Post(router, "/schedule/:val1/:val2", Routes::bind(&WindowEndpoint::setSchedule, this));
+        Routes::Post(router, "/schedule/isOn/:val", Routes::bind(&WindowEndpoint::setScheduleStatus, this));
 
         Routes::Post(router, "/led/power/:val", Routes::bind(&WindowEndpoint::setLeds, this));
         Routes::Post(router, "/led/color/:val", Routes::bind(&WindowEndpoint::setLedsColor, this));
@@ -364,7 +402,7 @@ private:
     // Returns time in format hh:mmAM
     std::string getCurrentTime()
     {
-        #include <time.h>
+#include <time.h>
         time_t rawtime;
         struct tm *timeinfo;
 
@@ -388,22 +426,23 @@ private:
             AutomaticTempController();
         }
 
-        int alarmVectorSize = window.getAlarmVectorSize();
-        if (window.isAlarmEnabled() && alarmVectorSize > 0)
+        int scheduleVectorSize = window.getScheduleVectorSize();
+        if (window.isScheduleEnabled() && scheduleVectorSize > 0)
         {
             int currTime = time(0);
+            std::cout << currTime << std::endl;
 
-            int alarmTime = window.getAlarmStartTime()[alarmVectorSize - 1].first;
-            int alarmSettings = window.getAlarmStartTime()[alarmVectorSize - 1].second;
+            int scheduleTime = window.getScheduleStartTime()[scheduleVectorSize - 1].first;
+            int scheduleSettings = window.getScheduleStartTime()[scheduleVectorSize - 1].second;
 
-            if (currTime > alarmTime)
+            if (currTime > scheduleTime)
             {
-                window.set(blindStatVal, alarmSettings);
-                window.popAlarmList();
-                int newVectorSize = window.getAlarmVectorSize();
+                window.set(blindStatVal, scheduleSettings);
+                window.popScheduleList();
+                int newVectorSize = window.getScheduleVectorSize();
                 if (newVectorSize == 0)
                 {
-                    window.setAlarmStatus(0);
+                    window.setScheduleStatus(0);
                 }
             }
         }
@@ -449,19 +488,25 @@ private:
             {
                 int percentage = weatherVals.at(key);
                 window.set(blindStatVal, percentage);
-
             }
-            std::cout << key << std::endl;
+            //std::cout << key << std::endl;
         }
 
         int cleanPercentage = getSensorCleanPergentage();
-        if (cleanPercentage < 100){
+        if (cleanPercentage < 100)
+        {
             window.setCleanPercentage(cleanPercentage);
             // Start cleaning
             int cleanSpeed = 100 - cleanPercentage;
 
             // TODO sa legam cleaning de vreme sau altcv
+            // se spală automat fereastra după fiecar
             // ca nu stiu ce sa fac mai departe :))
+        }
+
+        if (window.isAlarmModeEnabled())
+        {
+            window.setAlarmActive(getWindowOpenSensor());
         }
     }
 
@@ -488,7 +533,7 @@ private:
             {
                 hour = 0;
             }
-        }   
+        }
 
         int minute = 0;
         if (request.hasParam(":minute"))
@@ -523,12 +568,13 @@ private:
             window.addWindowCloseTime(inputTime);
             response.send(Http::Code::Ok, "Window will close at " + inputTime + "\n");
         }
-        else{
+        else
+        {
             response.send(Http::Code::Not_Found, "Wrong action\n");
         }
     }
 
-    void setAlarmStatus(const Rest::Request &request, Http::ResponseWriter response)
+    void setScheduleStatus(const Rest::Request &request, Http::ResponseWriter response)
     {
         Guard guard(WindowLock);
 
@@ -539,12 +585,13 @@ private:
             val = Value.as<bool>();
         }
 
-        window.setAlarmEnabled(val);
+        window.setScheduleEnabled(val);
 
-        response.send(Http::Code::Ok, "Is alarm on? " + std::to_string(val) + "\n");
+        response.send(Http::Code::Ok, "Is schedule on? " + std::to_string(val) + "\n");
     }
 
-    void setSelfClean(const Rest::Request &request, Http::ResponseWriter response){
+    void setSelfClean(const Rest::Request &request, Http::ResponseWriter response)
+    {
         Guard guard(WindowLock);
 
         bool val = 0;
@@ -558,7 +605,8 @@ private:
         response.send(Http::Code::Ok, "Is selfcleaning on? " + std::to_string(val) + "\n");
     }
 
-    void setLeds(const Rest::Request &request, Http::ResponseWriter response){
+    void setLeds(const Rest::Request &request, Http::ResponseWriter response)
+    {
         Guard guard(WindowLock);
 
         bool val = 0;
@@ -570,14 +618,16 @@ private:
 
         window.setLedPower(val);
         std::string color = window.getLedColor();
-        if (color == ""){
+        if (color == "")
+        {
             window.setLedColor("000000");
         }
 
         response.send(Http::Code::Ok, "Are Led on? " + std::to_string(val) + "\n");
     }
 
-    void setLedsColor(const Rest::Request &request, Http::ResponseWriter response){
+    void setLedsColor(const Rest::Request &request, Http::ResponseWriter response)
+    {
         Guard guard(WindowLock);
 
         std::string val = "";
@@ -588,7 +638,7 @@ private:
         }
 
         //validate input wih regex
-        if ( regex_match (val, regex("[a-fA-F0-9]{6}") ))
+        if (regex_match(val, regex("[a-fA-F0-9]{6}")))
         {
             window.setLedPower(true);
             window.setLedColor(val);
@@ -630,13 +680,18 @@ private:
             window.setWeatherMode(val);
             response.send(Http::Code::Ok, " auto " + settingName + " was set to " + std::to_string(val) + "\n");
         }
+        else if (settingName == safetyAlarmVal)
+        {
+            window.setAlarmMode(val);
+            response.send(Http::Code::Ok, " auto " + settingName + " was set to " + std::to_string(val) + "\n");
+        }
         else
         {
             response.send(Http::Code::Not_Found, settingName + " was not found and or '" + std::to_string(val) + "' was not a valid value\n");
         }
     }
 
-    void setAlarm(const Rest::Request &request, Http::ResponseWriter response)
+    void setSchedule(const Rest::Request &request, Http::ResponseWriter response)
     {
         Guard guard(WindowLock);
 
@@ -660,20 +715,20 @@ private:
             window.setAutomaticTemp(0);
 
             int currentTime = time(0);
-            pair<int, int> alarmValues;
+            pair<int, int> scheduleValues;
 
-            alarmValues.first = currentTime + val1;
-            alarmValues.second = val2;
+            scheduleValues.first = currentTime + val1;
+            scheduleValues.second = val2;
 
-            window.addAlarmStartTime(alarmValues);
-            window.setAlarmStatus(1);
+            window.addScheduleStartTime(scheduleValues);
+            window.setScheduleStatus(1);
 
-            response.send(Http::Code::Ok, "alarm starts in " + std::to_string(val1) + " with blinds open at " + std::to_string(val2) + "\n");
+            response.send(Http::Code::Ok, "schedule starts in " + std::to_string(val1) + " with blinds open at " + std::to_string(val2) + "\n");
         }
         else if (val1 == 0)
         {
-            window.setAlarmStatus(0);
-            response.send(Http::Code::Ok, "alarm disabled\n");
+            window.setScheduleStatus(0);
+            response.send(Http::Code::Ok, "schedule disabled\n");
         }
         else
         {
@@ -683,19 +738,20 @@ private:
 
     void handleReady(const Rest::Request &request, Http::ResponseWriter response)
     {
-        
+
         logger("[GET] /ready");
         std::string windows = "Window " + window.get(windowStatVal);
         std::string blinds = "Blinds " + window.get(blindStatVal);
 
         UserPreferences userPref = window.getUserPreferences();
-        std::string userPrefsText = "\nUser prefs: temp=" + std::to_string(userPref.roomTemperature) + ", lightLvl=" + std::to_string(userPref.blindsLevel) + 
-        ", rainy open % =" + std::to_string(userPref.weatherVals["rainy"]) + 
-        ", cloudy open % =" + std::to_string(userPref.weatherVals["cloudy"]) +
-        ", sunny open % =" + std::to_string(userPref.weatherVals["sunny"]) +"\n";
+        std::string userPrefsText = "\nUser prefs: temp=" + std::to_string(userPref.roomTemperature) + ", lightLvl=" + std::to_string(userPref.blindsLevel) +
+                                    ", rainy open % =" + std::to_string(userPref.weatherVals["rainy"]) +
+                                    ", cloudy open % =" + std::to_string(userPref.weatherVals["cloudy"]) +
+                                    ", sunny open % =" + std::to_string(userPref.weatherVals["sunny"]) + "\n";
 
         std::string autoFeatureLight = "Auto Light disabled";
         std::string autoFeatureTemp = "Auto Temp disabled";
+
         if (window.isAutomaticLightEnabled())
         {
             autoFeatureLight = "Auto for LIGHT is enabled";
@@ -707,18 +763,36 @@ private:
         }
 
         std::string ledStatus = "\nLeds are off\n";
-        if (window.getLedPower()){
+        if (window.getLedPower())
+        {
             ledStatus = "\nLeds are on, color " + window.getLedColor() + "\n";
         }
 
         std::string selfClean = "Self cleaning is off\n";
-        if (window.getSelfCleaning()){
+        if (window.getSelfCleaning())
+        {
             selfClean = "Self cleaning is on " + std::to_string(window.getCleanPercentage()) + "\n";
         }
 
-        std::string textResponse = windows + "\n" + blinds 
-        + userPrefsText + autoFeatureLight + "\n" + autoFeatureTemp
-        + ledStatus + selfClean;
+        std::string alarmFeature = "Safety alarm disabled\n";
+        if (window.isAlarmModeEnabled())
+        {
+            alarmFeature = "Safety alarm is turned on\n";
+        }
+
+        std::string alarmActive = "Safety alarm is not active\n";
+        if (window.isAlarmActive())
+        {
+            alarmActive = "Safety alarm is active!!!\n";
+        }
+
+        std::string scheduleFeature = "Blinds Schedule is disabled\n";
+        if (window.isScheduleEnabled())
+        {
+            scheduleFeature = "Blinds Schedule is enabled\n";
+        }
+
+        std::string textResponse = windows + "\n" + blinds + userPrefsText + autoFeatureLight + "\n" + autoFeatureTemp + ledStatus + selfClean + alarmFeature + alarmActive + scheduleFeature;
         response.send(Http::Code::Ok, textResponse + "\n");
     }
 
@@ -901,8 +975,18 @@ private:
     }
 
     // Simulate clean sensor
-    int getSensorCleanPergentage(){
+    int getSensorCleanPergentage()
+    {
+        int currTime = time(0);
+        srand(currTime);
         return rand() % 100;
+    }
+
+    bool getWindowOpenSensor()
+    {
+        int currTime = time(0);
+        srand(currTime);
+        return rand() % 2;
     }
 
     std::string getWeather()
@@ -1053,10 +1137,9 @@ void httpExample(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-
     //int program = fork();
     httpExample(argc, argv);
-
+    
     // // Parent executes mqtt
     // if (program > 0){
     // 	//mqttExample();

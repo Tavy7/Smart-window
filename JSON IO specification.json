@@ -1,7 +1,7 @@
 {
     "device-name": "SmartWindow App",
     "device-type": "SmartWindow",
-    "buffers-count": 3,
+    "buffers-count": 8,
     "input-buffers1":{
         "1":{
             "token-delimitators": "",
@@ -9,7 +9,7 @@
             "prefix": " '",
             "buffer-tokens":[
             {
-                "name":"SmartWindow options",
+                "name":"SmartWindow options",   
                 "description":"",
                 "token-type":"string", 
                 "byte-size":10, 
@@ -38,25 +38,49 @@
                 "description":"",
                 "token-type":"string", 
                 "byte-size":10, 
-                "regex-rule": "[a-zA-Z]*", // Correct inputs will be 'user']
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be [user]
                 "optional": false
             },
             {
-                "name":"SmartWindow option first parameter value",
-                "description": "First value for user preferences - temperature you would like in % ",
+                "name":"SmartWindow option parameter value",
+                "description": "Value of temperature that you want in your room",
                 "token-type":"int",
                 "byte-size":10,
                 "regex-rule": "[0-100]", // Correct inputs will be a number between 0-100
                 "optional": false
             },
             {
-                "name":"SmartWindow option second parameter value",
-                "description": "Second value for user preferences - light you would like in % ",
+                "name":"SmartWindow option parameter value",
+                "description": "Value of light that you want in your room",
                 "token-type":"int",
                 "byte-size":10,
                 "regex-rule": "[0-100]", // Correct inputs will be a number between 0-100
                 "optional": false
-            }      
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "when it rains, what percent would you like the blinds to be open",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-100]", // Correct inputs will be a number between 0-100
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "when is cloudy, what percent would you like the blinds to be open",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-100]", // Correct inputs will be a number between 0-100
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "when is sunny, what percent would you like the blinds to be open",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-100]", // Correct inputs will be a number between 0-100
+                "optional": false
+            }       
          
             ]
         }
@@ -69,20 +93,201 @@
             "buffer-tokens":[
             {
                 "name":"SmartWindow options",
-                "description":"",
+                "description":"set the window or the blinds on auto mode",
                 "token-type":"string", 
                 "byte-size":10, 
                 "regex-rule": "[a-zA-Z]*", // Correct inputs will be 'auto']
                 "optional": false
             },
             {
+                "name":"SmartWindow options",
+                "description":"the auto algorithm will run for the setting you choose",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be [windowStatus, blindsStatus]
+                "optional": false
+            },
+            {
                 "name":"SmartWindow option parameter value",
-                "description": "if user has no preferences, then the auto will run",
+                "description": "start or stop the auto algorithm for the chosen setting",
                 "token-type":"int",
                 "byte-size":10,
                 "regex-rule": "[0-1]", // Correct inputs is 0 (off) or 1(off)
                 "optional": false
             }  
+            ]
+        }
+    },
+    "input-buffers4":{  
+        "4":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": " '",
+            "buffer-tokens":[
+            {
+                "name":"SmartWindow options",
+                "description":"open or close the window at a specific time",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be 'windowTimer']
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "How would you like the window to be",
+                "token-type":"string",
+                "byte-size":10,
+                "regex-rule": "[a-zA-Z]*", // Correct inputs is [open, close]
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "Set the hour for the chosen action",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-23]", // Correct inputs is a number between 0 and 23
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "Set the minute for the chosen action",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-59]", // Correct inputs is a number between 0 and 59
+                "optional": false
+            }    
+            ]
+        }
+    },
+    "input-buffers5":{  
+        "5":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": " '",
+            "buffer-tokens":[
+            {
+                "name":"SmartWindow options",
+                "description":"",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct input is [schedule]
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[a-zA-Z]*", // Correct input is  [isOn]
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "set the schedule on or off",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-1]", // Correct inputs is 0(off) or 1(on)
+                "optional": false
+            }    
+            ]
+        }
+    },
+    "input-buffers6":{  
+        "6":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": " '",
+            "buffer-tokens":[
+            {
+                "name":"SmartWindow options",
+                "description":"",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be [schedule]
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "how many seconds until the alarm will start",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-63000]", // Correct inputs will be a number between 0 and 63000
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "at what percent would you like the blinds to be open when the alarm will start",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-100]", // Correct inputs will be a number between 0 and 100
+                "optional": false
+            }    
+            ]
+        }
+    },
+    "input-buffers7":{  
+        "7":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": " '",
+            "buffer-tokens":[
+            {
+                "name":"SmartWindow options",
+                "description":"a color light",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct input is [led]
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "",
+                "token-type":"string",
+                "byte-size":10,
+                "regex-rule": "[a-zA-Z]*", // Correct inputs will be [power, color]
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "set this value if you choose power setting",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-1]", // Correct inputs is [0(off), 1(off)]
+                "optional": true
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "set this value if you choose color setting",
+                "token-type":"string",
+                "byte-size":10,
+                "regex-rule": "[xX][0-9a-fA-F]+", // Correct inputs is a hexa code (ex: #00FF00)
+                "optional": true
+            }     
+            ]
+        }
+    },
+    "input-buffers8":{  
+        "8":{
+            "token-delimitators": "",
+            "protocol": "HTTP",
+            "prefix": " '",
+            "buffer-tokens":[
+            {
+                "name":"SmartWindow options",
+                "description":"a function that will clean the window when its dirty",
+                "token-type":"string", 
+                "byte-size":10, 
+                "regex-rule": "[a-zA-Z]*", // Correct input is [selfclean]
+                "optional": false
+            },
+            {
+                "name":"SmartWindow option parameter value",
+                "description": "start or stop",
+                "token-type":"int",
+                "byte-size":10,
+                "regex-rule": "[0-1]", // Correct inputs is 0 or 1
+                "optional": false
+            }    
             ]
         }
     },

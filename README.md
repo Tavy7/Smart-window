@@ -25,12 +25,13 @@ A step by step series of examples that tell you how to get a development env run
 You should open the terminal, navigate into the root folder of this repository, and run:
 
 - g++ SmartWindow_example.cpp -o SmartWindow -lpistache -lcrypto -lssl -lpthread
-- 
+
 This will compile the project using g++, into an executable called SmartWindow using the libraries pistache, crypto, ssl, pthread. You only really want pistache, but the last three are dependencies of the former. Note that in this compilation process, the order of the libraries is important.
 
 # Running
 In a separate terminal, start the Mosquitto server:
 - mosquitto -v
+
 The -v argument starts it in verbose mode, meaning it will print out all incoming and outgoing messages.
 
 # To start the server run

@@ -48,46 +48,46 @@ When ready is called, the following information will be displayed:
 - the percentage of temperature and light set by the user (0 0  if he did not set anything)
 - the value of auto (if is on or off)
 - 
-curl -XPOST http://localhost:9080/settings/blindsStatus/:value
+curl -XPOST http://localhost:9080/blindsStatus/:value
 Sets the open percentage of the blinds to the given value
 
-curl http://localhost:9080/settings/blindsStatus/
+curl http://localhost:9080/blindsStatus/
 Get the current open percentage of the blinds
 
-curl -XPOST http://localhost:9080/settings/windowStatus/:value
+curl -XPOST http://localhost:9080/windowStatus/:value
 Sets the open percentage of the window to the given value
 
-curl http://localhost:9080/settings/windowStatus/
+curl http://localhost:9080/windowStatus/
 Get the current open percentage of the blinds
 
-curl -XPOST http://localhost:9080/settings/user/:val1/:val2/val3/val4/val5
+curl -XPOST http://localhost:9080/user/:val1/:val2/val3/val4/val5
 Sets ? 
 
-curl http://localhost:9080/settings/user/
+curl http://localhost:9080/user/
 Get ?
 
-curl -XPOST http://localhost:9080/settings/auto/windowStatus
+curl -XPOST http://localhost:9080/auto/windowStatus
 Set auto for windowStatus to 0(off) or 1(on) - this will shut down user preferences and will use the base algorithm
 
-curl -XPOST http://localhost:9080/settings/auto/blindsStatus
+curl -XPOST http://localhost:9080/auto/blindsStatus
 Set auto for blindsStatus to 0(off) or 1(on) - this will shut down user preferences and will use the base algorithm
 
-curl -XPOST http://localhost:9080/settings/windowTimer/:val/:val/:val
+curl -XPOST http://localhost:9080/windowTimer/:val/:val/:val
 ?
 
-curl -XPOST http://localhost:9080/settings/schedule/isOn/:val
+curl -XPOST http://localhost:9080/schedule/isOn/:val
 Start or stop the schedule
 
-curl -XPOST http://localhost:9080/settings/schedule/:val/:val
+curl -XPOST http://localhost:9080/schedule/:val/:val
 Set the values for the schedule
 
-curl -XPOST http://localhost:9080/settings/led/power/:val
+curl -XPOST http://localhost:9080/led/power/:val
 ?
 
-curl -XPOST http://localhost:9080/settings/led/color/:val
+curl -XPOST http://localhost:9080/led/color/:val
 ?
 
-curl -XPOST http://localhost:9080/settings/safeclean/:val
+curl -XPOST http://localhost:9080/safeclean/:val
 ?
 
 # Built With

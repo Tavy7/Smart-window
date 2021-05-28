@@ -60,14 +60,35 @@ Sets the open percentage of the window to the given value
 curl http://localhost:9080/settings/windowStatus/
 Get the current open percentage of the blinds
 
-curl -XPOST http://localhost:9080/settings/user/:val1/:val2
-Sets the temperature and the luminosity preferred by the user 
+curl -XPOST http://localhost:9080/settings/user/:val1/:val2/val3/val4/val5
+Sets ? 
 
 curl http://localhost:9080/settings/user/
-Get the user preferences about the temperature and the light
+Get ?
 
-curl -XPOST http://localhost:9080/settings/auto/
-Set auto to 0(off) or 1(on) - this will shut down user preferences and will use the base algorithm
+curl -XPOST http://localhost:9080/settings/auto/windowStatus
+Set auto for windowStatus to 0(off) or 1(on) - this will shut down user preferences and will use the base algorithm
+
+curl -XPOST http://localhost:9080/settings/auto/blindsStatus
+Set auto for blindsStatus to 0(off) or 1(on) - this will shut down user preferences and will use the base algorithm
+
+curl -XPOST http://localhost:9080/settings/windowTimer/:val/:val/:val
+?
+
+curl -XPOST http://localhost:9080/settings/schedule/isOn/:val
+Start or stop the schedule
+
+curl -XPOST http://localhost:9080/settings/schedule/:val/:val
+Set the values for the schedule
+
+curl -XPOST http://localhost:9080/settings/led/power/:val
+?
+
+curl -XPOST http://localhost:9080/settings/led/color/:val
+?
+
+curl -XPOST http://localhost:9080/settings/safeclean/:val
+?
 
 # Built With
 Pistache - Web server

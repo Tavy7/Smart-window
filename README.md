@@ -45,9 +45,15 @@ curl http://localhost:9080/ready
 When ready is called, the following information will be displayed:
 - the percentage of the window (how % is open)
 - the percentage of the blinds (how % are open)
-- the percentage of temperature and light set by the user (0 0  if he did not set anything)
-- the value of auto (if is on or off)
-- 
+- the percentage of temperature and light set by the user
+- the value of auto for temp and for light
+- the status for led functionality
+- the status for safeclean functionality 
+- the status for alarm functionality
+- if the alarm feature is enabled, is an alarm active?
+- the status of blinds schedule
+
+
 curl -XPOST http://localhost:9080/blindsStatus/:value
 Sets the open percentage of the blinds to the given value
 

@@ -12,8 +12,8 @@ You will need to install the Pistache library. On Ubuntu, you can install a pre-
 For MQTT protocol support, you can use the Eclipse Paho client library. The Paho C++ library can be installed from source (will require you to also build and install the Paho C library).
 MQTT also requires a server (a message broker) to be running in order to have where to send the messages. For this, you can use Eclipse Mosquitto. On Ubuntu, it can be installed from a PPA:
 
-sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
-sudo apt update
+sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa \n
+sudo apt update \n
 sudo apt install mosquitto
  
 # Building

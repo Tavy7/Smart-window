@@ -13,9 +13,7 @@ For MQTT protocol support, you can use the Eclipse Paho client library. The Paho
 MQTT also requires a server (a message broker) to be running in order to have where to send the messages. For this, you can use Eclipse Mosquitto. On Ubuntu, it can be installed from a PPA:
 
 sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
-
 sudo apt update
-
 sudo apt install mosquitto
  
 # Building

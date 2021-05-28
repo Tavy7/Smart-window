@@ -61,10 +61,11 @@ curl http://localhost:9080/windowStatus/
 Get the current open percentage of the blinds
 
 curl -XPOST http://localhost:9080/user/:val1/:val2/val3/val4/val5
-Sets ? 
+Sets user preferences: temperature and light in the room and after that a percent for blinds when outside is: rainy, cloudy, sunny
+
 
 curl http://localhost:9080/user/
-Get ?
+Get all values set above
 
 curl -XPOST http://localhost:9080/auto/windowStatus
 Set auto for windowStatus to 0(off) or 1(on) - this will shut down user preferences and will use the base algorithm
@@ -73,22 +74,22 @@ curl -XPOST http://localhost:9080/auto/blindsStatus
 Set auto for blindsStatus to 0(off) or 1(on) - this will shut down user preferences and will use the base algorithm
 
 curl -XPOST http://localhost:9080/windowTimer/:val/:val/:val
-?
+Set the window to open at a specific time: 0(off)/1(on), hour and minute
 
 curl -XPOST http://localhost:9080/schedule/isOn/:val
 Start or stop the schedule
 
 curl -XPOST http://localhost:9080/schedule/:val/:val
-Set the values for the schedule
+How many seconds until the alarm will start and at what percent would you like the blinds to be open
 
 curl -XPOST http://localhost:9080/led/power/:val
-?
+Start/stop led functionality -
 
 curl -XPOST http://localhost:9080/led/color/:val
-?
+Set the color for the led
 
 curl -XPOST http://localhost:9080/safeclean/:val
-?
+on/off safeclean functionality that will clean the window when is dirty
 
 # Built With
 Pistache - Web server
